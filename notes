@@ -1,0 +1,88 @@
+cub3d
+
+quelque sites utiles:
+
+
+https://lodev.org/cgtutor/raycasting.html
+https://github.com/iciamyplant/Cub3d-Linux
+
+https://www.youtube.com/watch?v=gYRrGTC7GtA
+https://www.youtube.com/watch?v=PC1RaETIx3Y
+https://www.youtube.com/watch?v=STNqcqLRBgk
+https://www.youtube.com/watch?v=TOEi6T2mtHo
+
+le debut du projet commence par un bon parsing, qui s'assure que chaque espace 0 ou 2 est bien entoure par un mur, que la carte est fermee. qu'il n'y a pas non plus delement inconnue dedans.
+donc on recupre le dossier de setting, on analyse les ligne, et on stock la carte dans un tableau d'int.
+
+on va ainsi pouvoir reperer la taille de l'ecran voulu et qu'il faudra conserve, mais aussi la taille estime des case de la map (elle est egale au nombre de pixel max des textures), ainsi que la position et l'orientation d'origin du personnage. son orientation va nous permettre d'avoir son angle de depart, deouis lequel ses futur angle vont dependre.
+en effet, si le personnage est oriente Nord, l'angle de dpeart sera de 90deg (radian pi/2), ouest, 180deg (radian PI), sud 270 deg (radian (3 * PI) /2) et est 0 degres (0 radian).
+et lorsqu'on appuiera sur fleche, l'angle du personnage va augmenter ou diminuer de -0.1. (attenion quand passe au dessus de 360 degres, on soustrait a l'angle 360 degres, et si passe en dessous de 0, ajoute 360 deg)
+l'orientation du personnage indique la position d'un point vers lequel le personnage regarde tout droit, c'est dson point median, le mileu de son champ de vision. il est calculer ainsi:
+orientation_x= position_x_du_personnage + (taille_des_case_de_la_map / 2) * cos(angle_personnage);
+
+orientation_y= position_y_du_personnage + (taille_des_case_de_la_map / 2) * sin(angle_personnage);
+
+le principe du raycastind est d'envoyer des rayon sur une portion donne (fild of view) et stopper le rayon quand celui ci frappe un mur. on obtient grace a pythagore la longueur du segment qui separe notre personnage de ce mur.
+pour trouver chauque angle pour tous les rayon il faut :
+definir l'angle vers lequelle est tourne le personnage (c'est a dire la ou il regarde tout droit. ensuite trouve la distance pour ce rayon entre perso et mur c'est l'angle perpendiculaire au personnage si ce dernier est represente par un trait. 
+donc 
+dist = distance separant le personnage du prochain mur quand celui ci regarde tout droit, donc avec l'angle median du field of view. ex :
+
+|  .*
+.*___
+
+puis:
+segment = dist * tan(0,523599);  --> correspond a 30 degre en radian. 30 degre pour un champ de vision de 60 degres. on le divise par deux. ex :
+
+<--->
+|  .*
+.*___
+
+div = (segment * 2) / largeur_de_l_ecran;  --> segment * 2 car le filed of view est de 60 degres et qu'on a creer la taille de segment que pour 30 degres. donc si on avait fait diviser segment par lecran, on aurait eu une taille trop grosse des ecart trop important par rapport a notre field of view;
+
+angle = angle_du_personnage + atan((segment - (numero_du_rayon recherche * div)) / dist);
+
+maintenant qu'on a recuperer tous les angles par lesquel les rayons vont passe pour aller chercher un mur, il n'y a plus qu'a les envoyer c'est rayon.
+on va les envoyer d'intersection de case a intersetion pour ne pas avoir a verifier chaque pixels.
+on fait ainsi avancer les rayon grace a l'angle precedemment obtenu :
+X = position_personnage_X + (i * cos(angle));
+Y = position_perso_Y - (i * sin(angle));
+avec i = 0, et incrememte a chaque avance.
+a chaque avance on verifie que le segment n'a pas touche de mur ou d'objet;
+quand il touche, on a donc x et y qui represente le point d'impacte. 
+on a donc
+dist_x = fabs(position_x_perso - X)
+dist_y = fabs(position_y_perso -Y);
+et grace a pythagore, on a la distance separant le perosnnage du mur;
+dist = sqrt(dist_x * dist_x + dist_y * dist_y);
+je verifie ensuite si c'est un mur nord sud est ouest que je frappe (solution peut optimale en utilisant d'abord les modulo, mais du coup pour les intersection communes, il y a une condition en plus, et si c'est des coin deemur encore plus de condition donc pas top)
+une fois trouve, il faut regle le fish_eye qui fait arrondir les murs car le personnage va voir affecter une valeur droite sur les angle de cote, alors qu'il les voit en biais.
+ex:
+___________
+   \ | /
+    \|/ 
+
+fish_angle = fabs(angle - angle_du_personnage);
+distance_correcte = dist * cos(fish_angle);
+
+on a la distance et on peut donc calculer la hauteur visible du mur par rapport a l'ecran :
+height = taille_case * (hauteur_ecran / dist)
+attention, sauvegarder cette hauteur et en creer une autre : si hauteur et sup a l'ecran, hauteur = ecran.
+puis prendre la moitie de l'ecran, la moitie de la hauteur, et imprimer en haut juqu'a ce que height = 0; puis imprimer plafond;
+et imprimer en bas jusqu'a la fin de height et imprimer sol;
+lors de l'impression il faut aussi savoir quel colonne de la texture (dont on a sauvegarder les couleur dans un tableau) il faut imprimer.
+pour cela il suffit de reprendre la position X du point d'impacte, on la divise par la taille de la case, ou on fait plutot un modulo, le reste correspond a la colonne x de la texture a imprimer. 
+
+pour les sprite, leur distance est calculer au meme moment que les murs, mais ils sont stocke dans un tableau, range par ordre de distance decroissante. puis on les imprime apres les murs, les uns sur les autre, ainsi, le plus loin est imprime en premier et ainsi de suite, les plus proche recouvrent les plus lointain.
+on garde aussi en memoire leur position x et y car ils seront imprimer tous en meme temps. leur taille est calule de la meme maniere que les murs, en fonction de cette hauteur il faut recaluler leur largeur. contrairement aux murs qui est imprimer a l'ecran colonne par colonne, j'imprime les psrite un a un mais tous d'un coup.
+
+je crois aue c'est a peu pres tout, il vaut mieux se referer au code pour en savoir plus... je n'ai pas parle des collision, il faut simplement verifier que le personnage n'est pas dans une case 1 ou 2 quand il avance, si c'est le cas, on annule ou on differe son deplacement.
+
+ATTENTION AUX OPERATION ENTRE FLOAT ET INT, ET AUX ARRONDIS
+library minilibx:
+sudo apt-get update && sudo apt-get install xorg libxext-dev zlib1g-dev
+compilation :
+mettre le dossier source mlx_linux avec mes fichiers.
+gcc all_my_files.c -Lmlx_linux - lmlx -lXext -lX11 -lm -lz
+
+
