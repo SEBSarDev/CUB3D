@@ -1,6 +1,8 @@
 # CUB3D
 A little program in C language that reproduces a 3D environment like wolfenstein 3d.
 
+![cub1](https://user-images.githubusercontent.com/114223678/194245419-7d19cbdb-04f3-4a55-b25f-52270ced2e08.gif)
+
 This project uses the principle of ray-casting to calculate and display a simple 3d environment (made of straight walls, a floor and a ceiling).
 It use the mlx_linux library that is provide by school 42.
 
